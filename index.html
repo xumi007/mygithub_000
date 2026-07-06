@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 待办看板</title>
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/board.css">
+    <link rel="stylesheet" href="css/modal.css">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="app-header">
+        <div class="header-left">
+            <h1 class="app-title">📋 AI 待办看板</h1>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" id="btnAddTask">+ 新增任务</button>
+            <button class="btn btn-ai" id="btnAiRecommend">🤖 AI 推荐</button>
+            <button class="btn btn-ai btn-organize hidden" id="btnAiOrganize">📦 AI 一键整理</button>
+            <button class="btn btn-icon" id="btnSettings" title="AI 设置">⚙️</button>
+        </div>
+    </header>
+
+    <!-- 分类 Tab 栏 -->
+    <nav class="category-tabs">
+        <button class="category-tab active" data-category="daily">📋 日常日程</button>
+        <button class="category-tab" data-category="study">📚 学习计划</button>
+    </nav>
+
+    <!-- 看板主体 -->
+    <main class="board-container">
+        <!-- 待开始列 -->
+        <div class="board-column" data-status="todo">
+            <div class="column-header">
+                <h2 class="column-title">📝 待开始</h2>
+                <span class="column-count" id="count-todo">0</span>
+            </div>
+            <div class="column-body" id="column-todo"></div>
+        </div>
+
+        <!-- 进行中列 -->
+        <div class="board-column" data-status="in-progress">
+            <div class="column-header">
+                <h2 class="column-title">🔄 进行中</h2>
+                <span class="column-count" id="count-in-progress">0</span>
+            </div>
+            <div class="column-body" id="column-in-progress"></div>
+        </div>
+
+        <!-- 已完成列 -->
+        <div class="board-column" data-status="done">
+            <div class="column-header">
+                <h2 class="column-title">✅ 已完成</h2>
+                <span class="column-count" id="count-done">0</span>
+            </div>
+            <div class="column-body" id="column-done"></div>
+        </div>
+    </main>
+
+    <!-- 新增/编辑任务弹窗 -->
+    <div class="modal-overlay hidden" id="modalTask">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTaskTitle">新增任务</h3>
+                <button class="modal-close" id="btnCloseTaskModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="formTask">
+                    <input type="hidden" id="taskId" value="">
+                    
+                    <div class="form-group">
+                        <label for="taskTitle">任务标题 <span class="required">*</span></label>
+                        <div class="input-with-ai">
+                            <input type="text" id="taskTitle" class="form-input" placeholder="输入任务标题..." required>
+                            <button type="button" class="btn-ai-sm" id="btnPolish" title="AI 润色">✨</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taskDescription">任务描述</label>
+                        <textarea id="taskDescription" class="form-textarea" rows="3" placeholder="输入任务描述..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taskPriority">优先级</label>
+                        <div class="priority-selector">
+                            <select id="taskPriority" class="form-select">
+                                <option value="medium">中优先级</option>
+                                <option value="high">高优先级</option>
+                                <option value="low">低优先级</option>
+                            </select>
+                            <button type="button" class="btn-ai-sm" id="btnAutoPriority" title="AI 自动评估">🤖</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taskDueDate">截止日期</label>
+                        <input type="date" id="taskDueDate" class="form-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taskTags">标签（逗号分隔）</label>
+                        <input type="text" id="taskTags" class="form-input" placeholder="例如: 工作, 紧急, 设计">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taskStatus">状态</label>
+                        <select id="taskStatus" class="form-select">
+                            <option value="todo">待开始</option>
+                            <option value="in-progress">进行中</option>
+                            <option value="done">已完成</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelTask">取消</button>
+                <button class="btn btn-primary" id="btnSaveTask">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 推荐清单弹窗 -->
+    <div class="modal-overlay hidden" id="modalAiRecommend">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3 class="modal-title">🤖 AI 推荐待办清单</h3>
+                <button class="modal-close" id="btnCloseAiRecommend">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="aiGoalInput">输入你的今日目标或需求</label>
+                    <textarea id="aiGoalInput" class="form-textarea" rows="3" placeholder="例如: 今天需要完成项目原型设计、整理周报、回复客户邮件..."></textarea>
+                </div>
+                <div class="form-group ai-stack-option">
+                    <label class="ai-stack-checkbox-label">
+                        <input type="checkbox" id="chkAutoStack" class="ai-stack-checkbox">
+                        <span class="ai-stack-checkbox-text">📦 把本次生成的任务自动堆叠归入同一个父任务</span>
+                        <span class="ai-stack-hint">勾选后 AI 将生成父子结构，子任务自动卡牌堆叠</span>
+                    </label>
+                </div>
+                <div class="form-group ai-parent-title-group hidden" id="aiParentTitleGroup">
+                    <label for="aiParentTitle">父任务标题（可选，留空自动使用目标作为标题）</label>
+                    <input type="text" id="aiParentTitle" class="form-input" placeholder="留空则自动使用上方输入的目标">
+                </div>
+                <button class="btn btn-ai btn-full" id="btnGenerateTasks">🤖 AI 生成</button>
+                <div id="aiRecommendLoading" class="ai-loading hidden">
+                    <div class="spinner"></div>
+                    <span>AI 正在思考中...</span>
+                </div>
+                <div id="aiRecommendError" class="ai-error hidden"></div>
+                <div id="aiRecommendResult" class="ai-recommend-result hidden"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelAiRecommend">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 设置弹窗 -->
+    <div class="modal-overlay hidden" id="modalSettings">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3 class="modal-title">⚙️ AI 设置</h3>
+                <button class="modal-close" id="btnCloseSettings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="aiApiEndpoint">API 地址</label>
+                    <input type="url" id="aiApiEndpoint" class="form-input" placeholder="https://api.openai.com/v1/chat/completions">
+                </div>
+                <div class="form-group">
+                    <label for="aiApiKey">API Key</label>
+                    <input type="password" id="aiApiKey" class="form-input" placeholder="sk-...">
+                </div>
+                <div class="form-group">
+                    <label for="aiModel">模型名称</label>
+                    <select id="aiModel" class="form-select">
+                        <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+                        <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+                        <option value="gpt-4o">gpt-4o</option>
+                        <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        <option value="gpt-3.5-turbo" selected>gpt-3.5-turbo</option>
+                        <option value="claude-3.5-haiku">claude-3.5-haiku</option>
+                        <option value="claude-3-sonnet">claude-3-sonnet</option>
+                        <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelSettings">取消</button>
+                <button class="btn btn-primary" id="btnSaveSettings">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 分类确认弹窗 -->
+    <div class="modal-overlay hidden" id="modalCategoryConfirm">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3 class="modal-title">🤖 AI 分类预判</h3>
+                <button class="modal-close" id="btnCloseCategoryConfirm">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="categoryConfirmLoading" class="ai-loading hidden">
+                    <div class="spinner"></div>
+                    <span>AI 正在分析任务归属...</span>
+                </div>
+                <div id="categoryConfirmContent">
+                    <div class="category-predict-card">
+                        <div class="category-predict-icon" id="categoryPredictIcon">📋</div>
+                        <div class="category-predict-info">
+                            <div class="category-predict-label">AI 预判归属板块</div>
+                            <div class="category-predict-value" id="categoryPredictValue">日常日程</div>
+                            <div class="category-predict-confidence" id="categoryPredictConfidence">
+                                <span class="confidence-bar">
+                                    <span class="confidence-fill" id="confidenceFill"></span>
+                                </span>
+                                <span class="confidence-text" id="confidenceText">置信度 95%</span>
+                            </div>
+                            <div class="category-predict-warning hidden" id="categoryPredictWarning">
+                                ⚠️ AI 对此判断存疑，建议手动确认
+                            </div>
+                        </div>
+                    </div>
+                    <div class="category-predict-summary" id="categoryPredictSummary"></div>
+                    <div class="category-predict-actions">
+                        <button class="btn btn-primary" id="btnAcceptCategory">✅ 采纳预判</button>
+                        <div class="category-manual-switch">
+                            <span class="category-manual-label">手动切换至：</span>
+                            <button class="btn btn-secondary category-switch-btn" data-category="daily">📋 日常日程</button>
+                            <button class="btn btn-secondary category-switch-btn" data-category="study">📚 学习计划</button>
+                        </div>
+                        <button class="btn btn-secondary" id="btnCancelCategoryConfirm">取消本次生成</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遮罩层 -->
+    <div class="overlay hidden" id="overlay"></div>
+
+    <!-- JavaScript -->
+    <script src="js/utils.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/task.js"></script>
+    <script src="js/board.js"></script>
+    <script src="js/modal.js"></script>
+    <script src="js/modal-settings.js"></script>
+    <script src="js/modal-ai-recommend.js"></script>
+    <script src="js/modal-category-confirm.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="ai/prompt-templates.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
